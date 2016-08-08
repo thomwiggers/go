@@ -94,27 +94,29 @@ var pkgDeps = map[string][]string{
 	// L3 adds reflection and some basic utility packages
 	// and interface definitions, but nothing that makes
 	// system calls.
-	"crypto":              {"L2", "hash"},          // interfaces
-	"crypto/cipher":       {"L2", "crypto/subtle"}, // interfaces
-	"crypto/subtle":       {},
-	"encoding/base32":     {"L2"},
-	"encoding/base64":     {"L2"},
-	"encoding/binary":     {"L2", "reflect"},
-	"hash":                {"L2"}, // interfaces
-	"hash/adler32":        {"L2", "hash"},
-	"hash/crc32":          {"L2", "hash"},
-	"hash/crc64":          {"L2", "hash"},
-	"hash/fnv":            {"L2", "hash"},
-	"image":               {"L2", "image/color"}, // interfaces
-	"image/color":         {"L2"},                // interfaces
-	"image/color/palette": {"L2", "image/color"},
-	"reflect":             {"L2"},
+	"crypto":                  {"L2", "hash"},                                     // interfaces
+	"crypto/cipher":           {"L2", "crypto/subtle", "crypto/internal/bytesop"}, // interfaces
+	"crypto/internal/bytesop": {"L2"},
+	"crypto/subtle":           {},
+	"encoding/base32":         {"L2"},
+	"encoding/base64":         {"L2"},
+	"encoding/binary":         {"L2", "reflect"},
+	"hash":                    {"L2"}, // interfaces
+	"hash/adler32":            {"L2", "hash"},
+	"hash/crc32":              {"L2", "hash"},
+	"hash/crc64":              {"L2", "hash"},
+	"hash/fnv":                {"L2", "hash"},
+	"image":                   {"L2", "image/color"}, // interfaces
+	"image/color":             {"L2"},                // interfaces
+	"image/color/palette":     {"L2", "image/color"},
+	"reflect":                 {"L2"},
 
 	"L3": {
 		"L2",
 		"crypto",
 		"crypto/cipher",
 		"crypto/subtle",
+		"crypto/internal/bytesop",
 		"encoding/base32",
 		"encoding/base64",
 		"encoding/binary",
@@ -314,17 +316,19 @@ var pkgDeps = map[string][]string{
 	"net/textproto": {"L4", "OS", "net"},
 
 	// Core crypto.
-	"crypto/aes":    {"L3"},
-	"crypto/des":    {"L3"},
-	"crypto/hmac":   {"L3"},
-	"crypto/md5":    {"L3"},
-	"crypto/rc4":    {"L3"},
-	"crypto/sha1":   {"L3"},
-	"crypto/sha256": {"L3"},
-	"crypto/sha512": {"L3"},
+	"crypto/aes":              {"L3"},
+	"crypto/chacha20poly1305": {"L3"},
+	"crypto/des":              {"L3"},
+	"crypto/hmac":             {"L3"},
+	"crypto/md5":              {"L3"},
+	"crypto/rc4":              {"L3"},
+	"crypto/sha1":             {"L3"},
+	"crypto/sha256":           {"L3"},
+	"crypto/sha512":           {"L3"},
 
 	"CRYPTO": {
 		"crypto/aes",
+		"crypto/chacha20poly1305",
 		"crypto/des",
 		"crypto/hmac",
 		"crypto/md5",
