@@ -113,6 +113,8 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 		sigType = signatureECDSA
 	case Ed25519:
 		sigType = signatureEd25519
+	case KEMTLS:
+		sigType = kemtls
 	default:
 		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
 	}
@@ -127,6 +129,8 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 		hash = crypto.SHA512
 	case Ed25519:
 		hash = directSigning
+	case KEMTLS:
+		hash = crypto.SHA384
 	default:
 		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
 	}

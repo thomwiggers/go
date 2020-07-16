@@ -145,7 +145,7 @@ type ecdheKeyAgreement struct {
 func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
 	var curveID CurveID
 	for _, c := range clientHello.supportedCurves {
-		if config.supportsCurve(c) {
+		if config.supportsCurve(c) && !c.isKem() {
 			curveID = c
 			break
 		}
@@ -155,7 +155,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		return nil, errors.New("tls: no supported elliptic curves offered")
 	}
 	if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
-		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
+		return nil, errors.New("tls: CurvePreferences includes unsupported curve in generateServerKeyExchange")
 	}
 
 	params, err := generateECDHEParameters(config.rand(), curveID)

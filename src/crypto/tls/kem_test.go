@@ -17,7 +17,7 @@ func TestKemAPI(t *testing.T) {
 	}
 
 	ss2, err := Decapsulate(Kem25519, privateKey, ct)
-	if !bytes.Equal(ss, ss2) {
+	if err != nil || !bytes.Equal(ss, ss2) {
 		t.FailNow()
 	}
 }

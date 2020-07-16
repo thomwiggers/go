@@ -19,7 +19,7 @@ type clientHandshakeStateTLS13 struct {
 	c           *Conn
 	serverHello *serverHelloMsg
 	hello       *clientHelloMsg
-	ecdheParams ecdheParameters
+	keyshares   []clientKeysharePrivate
 
 	session     *ClientSessionState
 	earlySecret []byte
@@ -47,7 +47,7 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 	}
 
 	// Consistency check on the presence of a keyShare and its parameters.
-	if hs.ecdheParams == nil || len(hs.hello.keyShares) != 1 {
+	if len(hs.keyshares) == 0 || len(hs.hello.keyShares) == 0 {
 		return c.sendAlert(alertInternalError)
 	}
 
@@ -204,21 +204,34 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server selected unsupported group")
 	}
-	if hs.ecdheParams.CurveID() == curveID {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: server sent an unnecessary HelloRetryRequest message")
+	for _, keyShare := range hs.keyshares {
+		if ecdheParams, ok := keyShare.(ecdheParameters); ok && ecdheParams.CurveID() == curveID {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: server sent an unnecessary HelloRetryRequest message")
+		}
 	}
-	if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
-		c.sendAlert(alertInternalError)
-		return errors.New("tls: CurvePreferences includes unsupported curve")
+	if curveID.isKem() {
+		kemID := curveID
+		pk, sk, err := KemKeypair(c.config.rand(), kemID)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		hs.keyshares = []clientKeysharePrivate{kemPrivateKey{id: kemID, privateKey: sk}}
+		hs.hello.keyShares = []keyShare{{group: curveID, data: pk}}
+	} else {
+		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
+			c.sendAlert(alertInternalError)
+			return errors.New("tls: CurvePreferences includes unsupported curve")
+		}
+		params, err := generateECDHEParameters(c.config.rand(), curveID)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		hs.keyshares = []clientKeysharePrivate{params}
+		hs.hello.keyShares = []keyShare{{group: curveID, data: params.PublicKey()}}
 	}
-	params, err := generateECDHEParameters(c.config.rand(), curveID)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	hs.ecdheParams = params
-	hs.hello.keyShares = []keyShare{{group: curveID, data: params.PublicKey()}}
 
 	hs.hello.cookie = hs.serverHello.cookie
 
@@ -293,7 +306,20 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server did not send a key share")
 	}
-	if hs.serverHello.serverShare.group != hs.ecdheParams.CurveID() {
+	foundGroup := false
+	for _, keyShare := range hs.keyshares {
+		if ecdheParams, ok := keyShare.(ecdheParameters); ok {
+			if hs.serverHello.serverShare.group == ecdheParams.CurveID() {
+				foundGroup = true
+			}
+		} else {
+			kemShare := keyShare.(kemPrivateKey)
+			if CurveID(kemShare.id) == hs.serverHello.serverShare.group {
+				foundGroup = true
+			}
+		}
+	}
+	if !foundGroup {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server selected unsupported group")
 	}
@@ -328,8 +354,19 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 
 func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 	c := hs.c
-
-	sharedKey := hs.ecdheParams.SharedKey(hs.serverHello.serverShare.data)
+	var sharedKey []byte
+	for _, keyShare := range hs.keyshares {
+		if params, ok := keyShare.(ecdheParameters); ok && params.CurveID() == hs.serverHello.serverShare.group {
+			sharedKey = params.SharedKey(hs.serverHello.serverShare.data)
+		} else if kemPrivate, ok := keyShare.(kemPrivateKey); ok && kemPrivate.id == KemID(hs.serverHello.serverShare.group) {
+			var err error
+			sharedKey, err = Decapsulate(kemPrivate.id, kemPrivate.privateKey, hs.serverHello.serverShare.data)
+			if err != nil {
+				c.sendAlert(alertInternalError)
+				return err
+			}
+		}
+	}
 	if sharedKey == nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid server key share")
@@ -433,6 +470,9 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 	if err := c.verifyServerCertificate(certMsg.certificate.Certificate); err != nil {
 		return err
 	}
+
+	// read certificateverify here
+	// this means that this is the point we need to decide we want to transition into KEMTLS
 
 	msg, err = c.readHandshake()
 	if err != nil {

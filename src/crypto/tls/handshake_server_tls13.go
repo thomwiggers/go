@@ -202,18 +202,27 @@ GroupSelection:
 		}
 		clientKeyShare = &hs.clientHello.keyShares[0]
 	}
-
-	if _, ok := curveForCurveID(selectedGroup); selectedGroup != X25519 && !ok {
-		c.sendAlert(alertInternalError)
-		return errors.New("tls: CurvePreferences includes unsupported curve")
+	if selectedGroup.isKem() {
+		sharedKey, ciphertext, err := Encapsulate(c.config.rand(), selectedGroup, clientKeyShare.data)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		hs.hello.serverShare = keyShare{group: selectedGroup, data: ciphertext}
+		hs.sharedKey = sharedKey
+	} else {
+		if _, ok := curveForCurveID(selectedGroup); selectedGroup != X25519 && !ok {
+			c.sendAlert(alertInternalError)
+			return errors.New("tls: CurvePreferences includes unsupported curve")
+		}
+		params, err := generateECDHEParameters(c.config.rand(), selectedGroup)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		hs.hello.serverShare = keyShare{group: selectedGroup, data: params.PublicKey()}
+		hs.sharedKey = params.SharedKey(clientKeyShare.data)
 	}
-	params, err := generateECDHEParameters(c.config.rand(), selectedGroup)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	hs.hello.serverShare = keyShare{group: selectedGroup, data: params.PublicKey()}
-	hs.sharedKey = params.SharedKey(clientKeyShare.data)
 	if hs.sharedKey == nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")

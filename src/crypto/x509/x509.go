@@ -485,6 +485,7 @@ var (
 	oidPublicKeyDSA     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
 	oidPublicKeyECDSA   = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 	oidPublicKeyEd25519 = oidSignatureEd25519
+	// TODO(Thom): Add OIDs for KEM certificates
 )
 
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {

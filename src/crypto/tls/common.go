@@ -128,6 +128,11 @@ type keyShare struct {
 	data  []byte
 }
 
+// FIXME properly specify this
+func (ks *keyShare) isKemKeyshare() bool {
+	return ks.group.isKem()
+}
+
 // TLS 1.3 PSK Key Exchange Modes. See RFC 8446, Section 4.2.9.
 const (
 	pskModePlain uint8 = 0
@@ -165,6 +170,7 @@ const (
 	signatureRSAPSS
 	signatureECDSA
 	signatureEd25519
+	kemtls
 )
 
 // directSigning is a standard Hash value that signals that no pre-hashing
@@ -326,6 +332,9 @@ const (
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
+
+	// KEMTLS
+	KEMTLS SignatureScheme = 0x0f10
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to
@@ -599,6 +608,12 @@ type Config struct {
 	// its key share in TLS 1.3. This may change in the future.
 	CurvePreferences []CurveID
 
+	// KemPreferences contains the list of KEMs that will be used in the
+	// KEMTLS handshake, in preference order.
+	// The client will use the first preference as the type for its key share
+	// in KEMTLS.
+	KemPreferences []KemID
+
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
 	// When true, the largest possible TLS record size is always used. When
 	// false, the size of TLS records may be adjusted in an attempt to
@@ -691,6 +706,7 @@ func (c *Config) Clone() *Config {
 		MinVersion:                  c.MinVersion,
 		MaxVersion:                  c.MaxVersion,
 		CurvePreferences:            c.CurvePreferences,
+		KemPreferences:              c.KemPreferences,
 		DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
 		Renegotiation:               c.Renegotiation,
 		KeyLogWriter:                c.KeyLogWriter,
@@ -828,7 +844,7 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 	return versions
 }
 
-var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+var defaultCurvePreferences = []CurveID{CurveID(Kem25519), X25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
 	if c == nil || len(c.CurvePreferences) == 0 {

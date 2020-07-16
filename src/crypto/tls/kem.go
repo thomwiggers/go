@@ -8,12 +8,29 @@ import (
 )
 
 // KemID identifies the KEM we use
-type KemID uint16
+type KemID = CurveID
 
 const (
 	// Kem25519 is X25519 as a KEM
-	Kem25519 KemID = 1
+	Kem25519 KemID = 0x01fb
+	// CSIDH is a post-quantum NIKE
+	CSIDH KemID = 0x01fc
+	// Kyber512 is a post-quantum KEM based on MLWE
+	Kyber512 KemID = 0x01fd
 )
+
+type kemPrivateKey struct {
+	id         KemID
+	privateKey []byte
+}
+
+func (c CurveID) isKem() bool {
+	switch KemID(c) {
+	case Kem25519, CSIDH, Kyber512:
+		return true
+	}
+	return false
+}
 
 // KemKeypair generates a KemKeypair for a given KEM
 // returns (public, private, err)
