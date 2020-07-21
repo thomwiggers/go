@@ -1359,4 +1359,12 @@ func TestKEMEphemeralTLS13(t *testing.T) {
 	if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
 		t.Fatal("Still connected with KEM-only server and no-KEM Client")
 	}
+
+	clientConfig = testConfig.Clone()
+	serverConfig = testConfig.Clone()
+	clientConfig.CurvePreferences = []CurveID{Kem25519}
+	clientConfig.MaxVersion = VersionTLS12
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
+		t.Fatal("Still connected with KEM-only server and TLS 1.2 Client")
+	}
 }
