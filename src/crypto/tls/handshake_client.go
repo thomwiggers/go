@@ -120,7 +120,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, []clientKeysharePrivate, erro
 
 	// TODO(Thom): Add KEM public keys
 	var params ecdheParameters
-	var pk, sk []byte
 	var keyShares []keyShare
 	var keySharePrivates []clientKeysharePrivate
 	haveECDHE := false
@@ -146,12 +145,12 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, []clientKeysharePrivate, erro
 				// this also enables KEMTLS support for now.
 				hello.supportedSignatureAlgorithms = append(hello.supportedSignatureAlgorithms, KEMTLS)
 				kemID := curveID
-				pk, sk, err = KemKeypair(config.rand(), kemID)
+				pk, sk, err := KemKeypair(config.rand(), kemID)
 				if err != nil {
 					return nil, nil, err
 				}
-				keyShares = append(keyShares, keyShare{group: CurveID(kemID), data: pk})
-				keySharePrivates = append(keySharePrivates, kemPrivateKey{id: kemID, privateKey: sk})
+				keyShares = append(keyShares, keyShare{group: pk.id, data: pk.publicKey})
+				keySharePrivates = append(keySharePrivates, sk)
 			}
 			if haveECDHE && haveKEM {
 				break

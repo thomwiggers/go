@@ -203,7 +203,7 @@ GroupSelection:
 		clientKeyShare = &hs.clientHello.keyShares[0]
 	}
 	if selectedGroup.isKem() {
-		sharedKey, ciphertext, err := Encapsulate(c.config.rand(), selectedGroup, clientKeyShare.data)
+		sharedKey, ciphertext, err := Encapsulate(c.config.rand(), kemPublicKey{id: selectedGroup, publicKey: clientKeyShare.data})
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err

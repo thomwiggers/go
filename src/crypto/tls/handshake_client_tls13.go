@@ -217,8 +217,8 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 			c.sendAlert(alertInternalError)
 			return err
 		}
-		hs.keyshares = []clientKeysharePrivate{kemPrivateKey{id: kemID, privateKey: sk}}
-		hs.hello.keyShares = []keyShare{{group: curveID, data: pk}}
+		hs.keyshares = []clientKeysharePrivate{sk}
+		hs.hello.keyShares = []keyShare{{group: pk.id, data: pk.publicKey}}
 	} else {
 		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
 			c.sendAlert(alertInternalError)
@@ -360,7 +360,7 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 			sharedKey = params.SharedKey(hs.serverHello.serverShare.data)
 		} else if kemPrivate, ok := keyShare.(kemPrivateKey); ok && kemPrivate.id == KemID(hs.serverHello.serverShare.group) {
 			var err error
-			sharedKey, err = Decapsulate(kemPrivate.id, kemPrivate.privateKey, hs.serverHello.serverShare.data)
+			sharedKey, err = Decapsulate(kemPrivate, hs.serverHello.serverShare.data)
 			if err != nil {
 				c.sendAlert(alertInternalError)
 				return err

@@ -11,12 +11,12 @@ func TestKemAPI(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	ss, ct, err := Encapsulate(rand.Reader, Kem25519, publicKey)
+	ss, ct, err := Encapsulate(rand.Reader, *publicKey)
 	if err != nil {
 		t.Error(err)
 	}
 
-	ss2, err := Decapsulate(Kem25519, privateKey, ct)
+	ss2, err := Decapsulate(*privateKey, ct)
 	if err != nil || !bytes.Equal(ss, ss2) {
 		t.FailNow()
 	}

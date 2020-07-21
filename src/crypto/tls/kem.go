@@ -24,6 +24,11 @@ type kemPrivateKey struct {
 	privateKey []byte
 }
 
+type kemPublicKey struct {
+	id        KemID
+	publicKey []byte
+}
+
 func (c CurveID) isKem() bool {
 	switch KemID(c) {
 	case Kem25519, CSIDH, Kyber512:
@@ -34,7 +39,7 @@ func (c CurveID) isKem() bool {
 
 // KemKeypair generates a KemKeypair for a given KEM
 // returns (public, private, err)
-func KemKeypair(rand io.Reader, kemID KemID) ([]byte, []byte, error) {
+func KemKeypair(rand io.Reader, kemID KemID) (*kemPublicKey, *kemPrivateKey, error) {
 	if kemID != Kem25519 {
 		return nil, nil, errors.New("tls: internal error: unsupported KEM")
 	}
@@ -48,12 +53,12 @@ func KemKeypair(rand io.Reader, kemID KemID) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	return publicKey, privateKey, nil
+	return &kemPublicKey{id: kemID, publicKey: publicKey}, &kemPrivateKey{id: kemID, privateKey: privateKey}, nil
 }
 
 // Encapsulate returns (shared secret, ciphertext)
-func Encapsulate(rand io.Reader, kemID KemID, publicKey []byte) ([]byte, []byte, error) {
-	if kemID != Kem25519 {
+func Encapsulate(rand io.Reader, pk kemPublicKey) ([]byte, []byte, error) {
+	if pk.id != Kem25519 {
 		return nil, nil, errors.New("tls: internal error: unsupported KEM")
 	}
 
@@ -65,7 +70,7 @@ func Encapsulate(rand io.Reader, kemID KemID, publicKey []byte) ([]byte, []byte,
 	if err != nil {
 		return nil, nil, err
 	}
-	sharedSecret, err := curve25519.X25519(privateKey, publicKey)
+	sharedSecret, err := curve25519.X25519(privateKey, pk.publicKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,12 +79,12 @@ func Encapsulate(rand io.Reader, kemID KemID, publicKey []byte) ([]byte, []byte,
 }
 
 // Decapsulate generates the shared secret
-func Decapsulate(kemID KemID, privateKey []byte, ciphertext []byte) ([]byte, error) {
-	if kemID != Kem25519 {
+func Decapsulate(privateKey kemPrivateKey, ciphertext []byte) ([]byte, error) {
+	if privateKey.id != Kem25519 {
 		return nil, errors.New("tls: internal error: unsupported KEM")
 	}
 
-	sharedSecret, err := curve25519.X25519(privateKey, ciphertext)
+	sharedSecret, err := curve25519.X25519(privateKey.privateKey, ciphertext)
 	if err != nil {
 		return nil, err
 	}
