@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/hmac"
+	kem "crypto/kem"
 	"crypto/rsa"
 	"errors"
 	"hash"
@@ -211,14 +212,14 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		}
 	}
 	if curveID.isKem() {
-		kemID := curveID
-		pk, sk, err := KemKeypair(c.config.rand(), kemID)
+		kemID := kem.KemID(curveID)
+		pk, sk, err := kem.Keypair(c.config.rand(), kemID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err
 		}
 		hs.keyshares = []clientKeysharePrivate{sk}
-		hs.hello.keyShares = []keyShare{{group: pk.id, data: pk.publicKey}}
+		hs.hello.keyShares = []keyShare{{group: CurveID(pk.Id), data: pk.PublicKey}}
 	} else {
 		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
 			c.sendAlert(alertInternalError)
@@ -313,8 +314,8 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 				foundGroup = true
 			}
 		} else {
-			kemShare := keyShare.(kemPrivateKey)
-			if CurveID(kemShare.id) == hs.serverHello.serverShare.group {
+			kemShare := keyShare.(kem.PrivateKey)
+			if CurveID(kemShare.Id) == hs.serverHello.serverShare.group {
 				foundGroup = true
 			}
 		}
@@ -358,9 +359,9 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 	for _, keyShare := range hs.keyshares {
 		if params, ok := keyShare.(ecdheParameters); ok && params.CurveID() == hs.serverHello.serverShare.group {
 			sharedKey = params.SharedKey(hs.serverHello.serverShare.data)
-		} else if kemPrivate, ok := keyShare.(kemPrivateKey); ok && kemPrivate.id == KemID(hs.serverHello.serverShare.group) {
+		} else if kemPrivate, ok := keyShare.(kem.PrivateKey); ok && kemPrivate.Id == kem.KemID(hs.serverHello.serverShare.group) {
 			var err error
-			sharedKey, err = Decapsulate(kemPrivate, hs.serverHello.serverShare.data)
+			sharedKey, err = kem.Decapsulate(&kemPrivate, hs.serverHello.serverShare.data)
 			if err != nil {
 				c.sendAlert(alertInternalError)
 				return err

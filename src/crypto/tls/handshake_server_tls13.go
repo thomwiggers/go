@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/hmac"
+	kem "crypto/kem"
 	"crypto/rsa"
 	"errors"
 	"hash"
@@ -203,7 +204,7 @@ GroupSelection:
 		clientKeyShare = &hs.clientHello.keyShares[0]
 	}
 	if selectedGroup.isKem() {
-		sharedKey, ciphertext, err := Encapsulate(c.config.rand(), kemPublicKey{id: selectedGroup, publicKey: clientKeyShare.data})
+		sharedKey, ciphertext, err := kem.Encapsulate(c.config.rand(), &kem.PublicKey{Id: kem.KemID(selectedGroup), PublicKey: clientKeyShare.data})
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err

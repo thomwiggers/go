@@ -8,7 +8,7 @@ import (
 )
 
 // KemID identifies the KEM we use
-type KemID = CurveID
+type KemID uint16
 
 const (
 	// Kem25519 is X25519 as a KEM
@@ -19,46 +19,38 @@ const (
 	Kyber512 KemID = 0x01fd
 )
 
-type kemPrivateKey struct {
-	id         KemID
-	privateKey []byte
+type PrivateKey struct {
+	Id         KemID
+	PrivateKey []byte
 }
 
-type kemPublicKey struct {
-	id        KemID
-	publicKey []byte
-}
-
-func (c CurveID) isKem() bool {
-	switch KemID(c) {
-	case Kem25519, CSIDH, Kyber512:
-		return true
-	}
-	return false
+type PublicKey struct {
+	Id        KemID
+	PublicKey []byte
 }
 
 // KemKeypair generates a KemKeypair for a given KEM
 // returns (public, private, err)
-func KemKeypair(rand io.Reader, kemID KemID) (*kemPublicKey, *kemPrivateKey, error) {
+func Keypair(rand io.Reader, kemID KemID) (PublicKey, PrivateKey, error) {
 	if kemID != Kem25519 {
-		return nil, nil, errors.New("tls: internal error: unsupported KEM")
+		return PublicKey{}, PrivateKey{}, errors.New("tls: internal error: unsupported KEM")
 	}
 
 	privateKey := make([]byte, curve25519.ScalarSize)
 	if _, err := io.ReadFull(rand, privateKey); err != nil {
-		return nil, nil, err
+		return PublicKey{}, PrivateKey{}, err
 	}
 	publicKey, err := curve25519.X25519(privateKey, curve25519.Basepoint)
 	if err != nil {
-		return nil, nil, err
+		return PublicKey{}, PrivateKey{}, err
 	}
 
-	return &kemPublicKey{id: kemID, publicKey: publicKey}, &kemPrivateKey{id: kemID, privateKey: privateKey}, nil
+	return PublicKey{Id: kemID, PublicKey: publicKey}, PrivateKey{Id: kemID, PrivateKey: privateKey}, nil
 }
 
 // Encapsulate returns (shared secret, ciphertext)
-func Encapsulate(rand io.Reader, pk kemPublicKey) ([]byte, []byte, error) {
-	if pk.id != Kem25519 {
+func Encapsulate(rand io.Reader, pk *PublicKey) ([]byte, []byte, error) {
+	if pk.Id != Kem25519 {
 		return nil, nil, errors.New("tls: internal error: unsupported KEM")
 	}
 
@@ -70,7 +62,7 @@ func Encapsulate(rand io.Reader, pk kemPublicKey) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	sharedSecret, err := curve25519.X25519(privateKey, pk.publicKey)
+	sharedSecret, err := curve25519.X25519(privateKey, pk.PublicKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -79,12 +71,12 @@ func Encapsulate(rand io.Reader, pk kemPublicKey) ([]byte, []byte, error) {
 }
 
 // Decapsulate generates the shared secret
-func Decapsulate(privateKey kemPrivateKey, ciphertext []byte) ([]byte, error) {
-	if privateKey.id != Kem25519 {
+func Decapsulate(privateKey *PrivateKey, ciphertext []byte) ([]byte, error) {
+	if privateKey.Id != Kem25519 {
 		return nil, errors.New("tls: internal error: unsupported KEM")
 	}
 
-	sharedSecret, err := curve25519.X25519(privateKey.privateKey, ciphertext)
+	sharedSecret, err := curve25519.X25519(privateKey.PrivateKey, ciphertext)
 	if err != nil {
 		return nil, err
 	}

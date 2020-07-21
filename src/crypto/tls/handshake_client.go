@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	kem "crypto/kem"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -144,12 +145,12 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, []clientKeysharePrivate, erro
 				haveKEM = true
 				// this also enables KEMTLS support for now.
 				hello.supportedSignatureAlgorithms = append(hello.supportedSignatureAlgorithms, KEMTLS)
-				kemID := curveID
-				pk, sk, err := KemKeypair(config.rand(), kemID)
+				kemID := kem.KemID(curveID)
+				pk, sk, err := kem.Keypair(config.rand(), kemID)
 				if err != nil {
 					return nil, nil, err
 				}
-				keyShares = append(keyShares, keyShare{group: pk.id, data: pk.publicKey})
+				keyShares = append(keyShares, keyShare{group: curveID, data: pk.PublicKey})
 				keySharePrivates = append(keySharePrivates, sk)
 			}
 			if haveECDHE && haveKEM {

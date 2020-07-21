@@ -11,6 +11,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	kem "crypto/kem"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
@@ -115,11 +116,20 @@ const (
 // only supports Elliptic Curve based groups. See RFC 8446, Section 4.2.7.
 type CurveID uint16
 
+func (curve CurveID) isKem() bool {
+	switch curve {
+	case Kem25519:
+		return true
+	}
+	return false
+}
+
 const (
 	CurveP256 CurveID = 23
 	CurveP384 CurveID = 24
 	CurveP521 CurveID = 25
 	X25519    CurveID = 29
+	Kem25519  CurveID = CurveID(kem.Kem25519)
 )
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
@@ -608,12 +618,6 @@ type Config struct {
 	// its key share in TLS 1.3. This may change in the future.
 	CurvePreferences []CurveID
 
-	// KemPreferences contains the list of KEMs that will be used in the
-	// KEMTLS handshake, in preference order.
-	// The client will use the first preference as the type for its key share
-	// in KEMTLS.
-	KemPreferences []KemID
-
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
 	// When true, the largest possible TLS record size is always used. When
 	// false, the size of TLS records may be adjusted in an attempt to
@@ -706,7 +710,6 @@ func (c *Config) Clone() *Config {
 		MinVersion:                  c.MinVersion,
 		MaxVersion:                  c.MaxVersion,
 		CurvePreferences:            c.CurvePreferences,
-		KemPreferences:              c.KemPreferences,
 		DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
 		Renegotiation:               c.Renegotiation,
 		KeyLogWriter:                c.KeyLogWriter,
@@ -844,7 +847,7 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 	return versions
 }
 
-var defaultCurvePreferences = []CurveID{CurveID(Kem25519), X25519, CurveP256, CurveP384, CurveP521}
+var defaultCurvePreferences = []CurveID{Kem25519, X25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
 	if c == nil || len(c.CurvePreferences) == 0 {
