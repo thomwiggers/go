@@ -389,6 +389,9 @@ var pkgDeps = map[string][]string{
 	"crypto/elliptic": {"L4", "CRYPTO", "math/big"},
 	"crypto/rsa":      {"L4", "CRYPTO", "crypto/rand", "math/big"},
 
+	// KEM api — Probably needs special concern
+	"crypto/kem": {"L3", "CRYPTO"},
+
 	"CRYPTO-MATH": {
 		"CRYPTO",
 		"crypto/dsa",
@@ -404,11 +407,14 @@ var pkgDeps = map[string][]string{
 	"crypto/tls": {
 		"L4", "CRYPTO-MATH", "OS", "golang.org/x/crypto/cryptobyte", "golang.org/x/crypto/hkdf",
 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall", "crypto/ed25519",
+		"crypto/x509/pkix",
+		"crypto/kem",
 	},
 	"crypto/x509": {
 		"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/ed25519",
 		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall", "net/url",
 		"golang.org/x/crypto/cryptobyte", "golang.org/x/crypto/cryptobyte/asn1",
+		"crypto/kem",
 	},
 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
 
