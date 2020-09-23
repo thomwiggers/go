@@ -16,6 +16,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	kem "crypto/kem"
 	"crypto/rsa"
 	_ "crypto/sha1"
 	_ "crypto/sha256"
@@ -228,6 +229,8 @@ const (
 	DSA
 	ECDSA
 	Ed25519
+	// KEMs
+	Kem25519
 )
 
 var publicKeyAlgoName = [...]string{
@@ -235,6 +238,8 @@ var publicKeyAlgoName = [...]string{
 	DSA:     "DSA",
 	ECDSA:   "ECDSA",
 	Ed25519: "Ed25519",
+	// KEMs
+	Kem25519: "Kem25519",
 }
 
 func (algo PublicKeyAlgorithm) String() string {
@@ -485,7 +490,9 @@ var (
 	oidPublicKeyDSA     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
 	oidPublicKeyECDSA   = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 	oidPublicKeyEd25519 = oidSignatureEd25519
+
 	// TODO(Thom): Add OIDs for KEM certificates
+	oidPublicKeyKem25519 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 44363, 46, 1} // Cloudflare OID
 )
 
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
@@ -498,6 +505,8 @@ func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm 
 		return ECDSA
 	case oid.Equal(oidPublicKeyEd25519):
 		return Ed25519
+	case oid.Equal(oidPublicKeyKem25519):
+		return Kem25519
 	}
 	return UnknownPublicKeyAlgorithm
 }
@@ -1076,6 +1085,16 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 		pub := make([]byte, ed25519.PublicKeySize)
 		copy(pub, asn1Data)
 		return ed25519.PublicKey(pub), nil
+	case Kem25519:
+		if len(keyData.Algorithm.Parameters.FullBytes) != 0 {
+			return nil, errors.New("x509: Ed25519 key encoded with illegal parameters")
+		}
+		if len(asn1Data) != ed25519.PublicKeySize {
+			return nil, errors.New("x509: wrong Ed25519 public key size")
+		}
+		pub := make([]byte, ed25519.PublicKeySize)
+		copy(pub, asn1Data)
+		return kem.PublicKey{Id: kem.Kem25519, PublicKey: pub}, nil
 	default:
 		return nil, nil
 	}
